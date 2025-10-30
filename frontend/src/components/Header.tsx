@@ -33,7 +33,7 @@ const Header: React.FC = () => {
                 <Globe className="w-6 h-6 text-white" />
               </div>
               <span className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                BridgeU
+                Nexus
               </span>
             </div>
           </div>
