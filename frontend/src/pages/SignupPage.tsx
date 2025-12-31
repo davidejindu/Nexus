@@ -61,6 +61,7 @@ const SignupPage: React.FC = () => {
         setShowUniversityDropdown(false);
       }
     };
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
@@ -90,6 +91,12 @@ const SignupPage: React.FC = () => {
       return;
     }
 
+    if (formData.password.length < 6) {
+      setError("Password must be at least 6 characters long");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const registerData: RegisterData = {
         username: formData.username,
@@ -109,7 +116,11 @@ const SignupPage: React.FC = () => {
         setError(response.message || "Registration failed");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Registration failed. Please try again."
+      );
     } finally {
       setIsLoading(false);
     }
@@ -118,61 +129,77 @@ const SignupPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
       <div className="max-w-2xl w-full">
-        <Link to="/" className="inline-flex items-center text-gray-600 mb-8">
-          <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home
+        <Link
+          to="/"
+          className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-8"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Home
         </Link>
 
         <div className="bg-white rounded-2xl shadow-2xl p-8">
-          <h1 className="text-3xl font-bold text-center mb-6">
-            Join Our Community
-          </h1>
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-gradient-to-br from-green-600 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <User className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Join Our Community
+            </h1>
+            <p className="text-gray-600">Create your account to get started</p>
+          </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
               {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Username */}
             <input
               name="username"
               value={formData.username}
               onChange={handleInputChange}
               placeholder="Username"
-              className="w-full p-3 border rounded"
-            />
-            <input
-              name="firstName"
-              value={formData.firstName}
-              onChange={handleInputChange}
-              placeholder="First Name"
-              className="w-full p-3 border rounded"
-            />
-            <input
-              name="lastName"
-              value={formData.lastName}
-              onChange={handleInputChange}
-              placeholder="Last Name"
-              className="w-full p-3 border rounded"
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl"
+              required
             />
 
+            {/* First + Last */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <input
+                name="firstName"
+                value={formData.firstName}
+                onChange={handleInputChange}
+                placeholder="First Name"
+                className="w-full pl-10 pr-4 py-3 border rounded-xl"
+              />
+              <input
+                name="lastName"
+                value={formData.lastName}
+                onChange={handleInputChange}
+                placeholder="Last Name"
+                className="w-full pl-10 pr-4 py-3 border rounded-xl"
+              />
+            </div>
+
             {/* Country */}
-            <div ref={countryDropdownRef}>
+            <div ref={countryDropdownRef} className="relative">
               <input
                 name="country"
                 value={formData.country}
                 onChange={handleInputChange}
                 onFocus={() => setShowCountryDropdown(true)}
-                placeholder="Country"
-                className="w-full p-3 border rounded"
+                placeholder="Search for your country"
+                className="w-full pl-10 pr-10 py-3 border rounded-xl"
               />
               {showCountryDropdown && (
-                <div className="border mt-1 rounded bg-white max-h-40 overflow-y-auto">
+                <div className="absolute z-10 w-full bg-white border rounded-xl shadow max-h-60 overflow-y-auto">
                   {filteredCountries.map((c) => (
                     <div
                       key={c}
                       onClick={() => handleCountrySelect(c)}
-                      className="p-2 hover:bg-gray-100 cursor-pointer"
+                      className="px-4 py-3 hover:bg-gray-100 cursor-pointer"
                     >
                       {c}
                     </div>
@@ -182,22 +209,22 @@ const SignupPage: React.FC = () => {
             </div>
 
             {/* University */}
-            <div ref={universityDropdownRef}>
+            <div ref={universityDropdownRef} className="relative">
               <input
                 name="university"
                 value={formData.university}
                 onChange={handleInputChange}
                 onFocus={() => setShowUniversityDropdown(true)}
-                placeholder="University"
-                className="w-full p-3 border rounded"
+                placeholder="Search for your university"
+                className="w-full pl-10 pr-10 py-3 border rounded-xl"
               />
               {showUniversityDropdown && (
-                <div className="border mt-1 rounded bg-white max-h-40 overflow-y-auto">
+                <div className="absolute z-10 w-full bg-white border rounded-xl shadow max-h-60 overflow-y-auto">
                   {filteredUniversities.map((u) => (
                     <div
                       key={u}
                       onClick={() => handleUniversitySelect(u)}
-                      className="p-2 hover:bg-gray-100 cursor-pointer"
+                      className="px-4 py-3 hover:bg-gray-100 cursor-pointer"
                     >
                       {u}
                     </div>
@@ -206,26 +233,28 @@ const SignupPage: React.FC = () => {
               )}
             </div>
 
+            {/* Passwords */}
             <input
-              type={showPassword ? "text" : "password"}
+              type="password"
               name="password"
               value={formData.password}
               onChange={handleInputChange}
               placeholder="Password"
-              className="w-full p-3 border rounded"
+              className="w-full pl-10 pr-4 py-3 border rounded-xl"
             />
             <input
-              type={showConfirmPassword ? "text" : "password"}
+              type="password"
               name="confirmPassword"
               value={formData.confirmPassword}
               onChange={handleInputChange}
               placeholder="Confirm Password"
-              className="w-full p-3 border rounded"
+              className="w-full pl-10 pr-4 py-3 border rounded-xl"
             />
 
             <button
+              type="submit"
               disabled={isLoading}
-              className="w-full bg-blue-600 text-white py-3 rounded"
+              className="w-full bg-gradient-to-r from-green-600 to-blue-600 text-white py-3 rounded-xl font-semibold"
             >
               {isLoading ? "Creating Account..." : "Create Account"}
             </button>
