@@ -14,7 +14,8 @@ dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
 
 
 /* ========= Fallback Content ========= */
@@ -788,11 +789,12 @@ export const getLearningContent = async (req, res) => {
       } catch (dbError) {
         logError('DATABASE_INSERT', dbError, { subcategoryId, userId, operation: 'insert_generated_content' });
         // Use the generated content without storing it
+        const fallback = getFallbackContent(subcategoryId);
         content = [{
-          content_id: 'temp-' + Date.now(),
-          title: generatedContent.title,
-          content: generatedContent.content,
-          difficulty: generatedContent.difficulty,
+          content_id: null,
+          title: fallback.title,
+          content: fallback.content,
+          difficulty: fallback.difficulty,
           created_at: new Date().toISOString()
         }];
         contentGenerated = true;
@@ -806,6 +808,15 @@ export const getLearningContent = async (req, res) => {
     // STEP 2: If fresh generation failed, try to use existing content from database
     if (!contentGenerated) {
       console.log('STEP 2: Attempting to use existing content from database...');
+
+      if (content[0] && content[0].content_id) {
+        await sql`
+          INSERT INTO user_learning_progress (user_id, subcategory_id, content_id)
+          VALUES (${userId}, ${subcategoryId}, ${content[0].content_id})
+          ON CONFLICT (user_id, content_id) DO UPDATE SET content_id = ${content[0].content_id}
+        `;
+      }
+      
       
       if (content.length > 0) {
         console.log('SUCCESS: Using existing content from database');
@@ -845,7 +856,7 @@ export const getLearningContent = async (req, res) => {
       console.log('STEP 3: Using hardcoded fallback content as last resort');
       const fallback = getFallbackContent(subcategoryId);
       content = [{
-        content_id: 'fallback-' + Date.now(),
+        content_id: null,
         title: fallback.title,
         content: fallback.content,
         difficulty: fallback.difficulty,
@@ -856,21 +867,23 @@ export const getLearningContent = async (req, res) => {
 
     // Try to record learning progress (non-critical)
     try {
-      if (subcategoryId === 'campus-life' || subcategoryId === 'general-mannerisms') {
-        await sql`
-          INSERT INTO user_learning_progress (user_id, subcategory_id, content_id)
-          VALUES (${userId}, ${subcategoryId}, ${content[0].content_id})
-          ON CONFLICT (user_id, content_id) DO UPDATE SET content_id = ${content[0].content_id}
-        `;
-      } else {
-        await sql`
-          INSERT INTO user_learning_progress (user_id, subcategory_id, content_id)
-          VALUES (${userId}, ${subcategoryId}, ${content[0].content_id})
-          ON CONFLICT (user_id, content_id) DO NOTHING
-        `;
+      if (content[0] && content[0].content_id) {
+        if (subcategoryId === 'campus-life' || subcategoryId === 'general-mannerisms') {
+          await sql`
+            INSERT INTO user_learning_progress (user_id, subcategory_id, content_id)
+            VALUES (${userId}, ${subcategoryId}, ${content[0].content_id})
+            ON CONFLICT (user_id, content_id) DO UPDATE SET content_id = ${content[0].content_id}
+          `;
+        } else {
+          await sql`
+            INSERT INTO user_learning_progress (user_id, subcategory_id, content_id)
+            VALUES (${userId}, ${subcategoryId}, ${content[0].content_id})
+            ON CONFLICT (user_id, content_id) DO NOTHING
+          `;
+        }
       }
     } catch (progressError) {
-      logError('PROGRESS_TRACKING', progressError, { subcategoryId, userId, contentId: content[0].content_id });
+      logError('PROGRESS_TRACKING', progressError, { subcategoryId, userId, contentId: content[0]?.content_id });
       // Continue without progress tracking - not critical
     }
 
@@ -888,7 +901,7 @@ export const getLearningContent = async (req, res) => {
     return res.status(200).json({
       success: true,
       content: {
-        content_id: 'emergency-fallback-' + Date.now(),
+        content_id: null,
         title: fallback.title,
         content: fallback.content,
         difficulty: fallback.difficulty,
@@ -961,11 +974,15 @@ export const generateQuiz = async (req, res) => {
     // Ensure we have exactly 5 questions
     questions = questions.slice(0, 5);
     
+    // Extract content_id from learning progress for relational integrity
+    const contentId = learningProgress[0]?.content_id ?? null;
+    
     // Clear existing questions and store new ones
+    // NOTE: This deletes globally per subcategory (fine for demo, but for production should scope by user_id)
     await sql`DELETE FROM quiz_questions WHERE subcategory_id = ${subcategoryId}`;
     
     // Store questions in database
-    console.log(`Storing ${questions.length} questions for subcategory: ${subcategoryId}`);
+    console.log(`Storing ${questions.length} questions for subcategory: ${subcategoryId} with content_id: ${contentId}`);
     const storedQuestions = [];
     for (let i = 0; i < questions.length; i++) {
       const question = questions[i];
@@ -976,7 +993,7 @@ export const generateQuiz = async (req, res) => {
           correct_answer, explanation, difficulty
         )
         VALUES (
-          ${subcategoryId}, ${question.contentId || null}, ${question.question}, 
+          ${subcategoryId}, ${contentId}, ${question.question}, 
           ${JSON.stringify(question.options)}, ${question.correctAnswer}, 
           ${question.explanation || null}, ${question.difficulty || 'Beginner'}
         )
