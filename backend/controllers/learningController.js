@@ -12,12 +12,11 @@ const __dirname = path.dirname(__filename);
 // Load .env from the main project directory (two levels up from controllers)
 dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
 
-// Initialize Gemini AI with new SDK (supports gemini-2.0-flash and newer models)
 const ai = new GoogleGenAI({ 
   vertexai: false, 
   apiKey: process.env.GEMINI_KEY 
 });
-const MODEL_NAME = 'gemini-2.0-flash';
+const MODEL_NAME = 'gemini-1.5-flash';
 
 
 
