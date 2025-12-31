@@ -1,7 +1,7 @@
 // backend/controllers/learningController.js
 import { sql } from "../config/db.js";
 import { body, validationResult } from "express-validator";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -12,9 +12,12 @@ const __dirname = path.dirname(__filename);
 // Load .env from the main project directory (two levels up from controllers)
 dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
 
-// Initialize Gemini AI
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+// Initialize Gemini AI with new SDK (supports gemini-2.0-flash and newer models)
+const ai = new GoogleGenAI({ 
+  vertexai: false, 
+  apiKey: process.env.GEMINI_KEY 
+});
+const MODEL_NAME = 'gemini-2.0-flash';
 
 
 
@@ -1337,9 +1340,11 @@ FORMAT: Return as JSON with these exact keys:
 
 Make the content specific, factual, and directly applicable to international students' experiences.`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const result = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: prompt
+    });
+    const text = result.text;
     
     console.log('Received LLM response, length:', text.length);
     
@@ -1435,9 +1440,11 @@ FORMAT YOUR RESPONSE EXACTLY AS JSON:
 
 IMPORTANT: The correctAnswer field must contain the EXACT text of one of the options.`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const result = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: prompt
+    });
+    const text = result.text;
     
     console.log('Received questions response, length:', text.length);
     
@@ -1546,9 +1553,11 @@ IMPORTANT:
 - Do NOT use "All of the above" or "None of the above" as options
 - Make questions specific and factual`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const result = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: prompt
+    });
+    const text = result.text;
     
     try {
       let cleanText = text.trim();
